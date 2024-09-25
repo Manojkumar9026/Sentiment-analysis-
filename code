@@ -1,0 +1,48 @@
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import accuracy_score, classification_report
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+import nltk
+import re
+import pickle
+from flask import Flask, request, render_template
+
+# Step 2: Load the dataset
+file_path = 'd://social_media_post.csv'
+df = pd.read_csv(file_path)
+
+# Step 3: Enhanced text preprocessing
+def preprocess_text(text):
+    text = text.lower()
+    text = re.sub(r'\d+', '', text)  # Remove numbers
+    text = re.sub(r'\W', ' ', text)  # Remove special characters
+    text = re.sub(r'\s+', ' ', text)  # Remove extra spaces
+    lemmatizer = WordNetLemmatizer()
+    text = ' '.join([lemmatizer.lemmatize(word) for word in text.split() if word not in stopwords.words('english')])
+    return text
+
+df['text'] = df['text'].apply(preprocess_text)
+
+# Step 4: Feature Extraction using TF-IDF
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(df['text'])
+y = df['Sentiment']
+
+# Step 5: Model Selection and Training
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+model = MultinomialNB()
+model.fit(X_train, y_train)
+
+# Step 6: Model Evaluation
+y_pred = model.predict(X_test)
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("Classification Report:\n", classification_report(y_test, y_pred, zero_division=0))
+
+# Step 7: Save the model and vectorizer for deployment
+with open('sentiment_model.pkl', 'wb') as model_file:
+    pickle.dump(model, model_file)
+with open('vectorizer.pkl', 'wb') as vec_file:
+    pickle.dump(vectorizer, vec_file)
